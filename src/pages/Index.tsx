@@ -1,13 +1,32 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from 'react';
+import { MobileLayout } from '@/components/layout/MobileLayout';
+import { BalanceCard } from '@/components/wallet/BalanceCard';
+import { QuickActions } from '@/components/wallet/QuickActions';
+import { ServiceGrid } from '@/components/wallet/ServiceGrid';
+import { TransactionList } from '@/components/wallet/TransactionList';
+import { storage } from '@/lib/storage';
+import { WalletBalance, Transaction } from '@/types/wallet';
 
 const Index = () => {
+  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    setBalance(storage.getBalance());
+    setTransactions(storage.getTransactions());
+  }, []);
+
+  if (!balance) return null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <MobileLayout title="SmartPay">
+      <div className="space-y-6">
+        <BalanceCard balance={balance} />
+        <QuickActions />
+        <ServiceGrid />
+        <TransactionList transactions={transactions} limit={5} />
       </div>
-    </div>
+    </MobileLayout>
   );
 };
 
