@@ -13,6 +13,8 @@ import Assistant from "./pages/Assistant";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { WalletProvider } from "@/context/WalletContext";
+import { ScrollToTop } from '@/components/layout/ScrollToTop';
+
 
 const queryClient = new QueryClient();
 
@@ -23,6 +25,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/topup" element={<TopUp />} />

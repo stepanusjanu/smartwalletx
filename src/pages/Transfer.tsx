@@ -48,9 +48,9 @@ export default function Transfer() {
     }
   };
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     const transferAmount = parseInt(amount);
-    const balance = storage.getBalance();
+    const balance = await storage.getBalance();
 
     if (transferAmount > balance.amount) {
       toast({
