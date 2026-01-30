@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { BalanceCard } from '@/components/wallet/BalanceCard';
+import { BalanceCard } from '@/components/wallet/BalanceCard'; 
 import { QuickActions } from '@/components/wallet/QuickActions';
 import { ServiceGrid } from '@/components/wallet/ServiceGrid';
 import { TransactionList } from '@/components/wallet/TransactionList';
-import { storage } from '@/lib/storage';
+import { storage } from '@/lib/storage'; 
 import { WalletBalance, Transaction } from '@/types/wallet';
+import { useWallet } from '@/context/WalletContext';
+import { useRecentTransactions } from '@/hooks/useRecentTransactions';
 
 const Index = () => {
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { balance, loading, error } = useWallet();
+  const { transactions } = useRecentTransactions(5);
 
-  useEffect(() => {
-    setBalance(storage.getBalance());
-    setTransactions(storage.getTransactions());
-  }, []);
-
+  if (loading) return null;
+  if (error) return <div>{error}</div>;
   if (!balance) return null;
 
   return (
@@ -24,7 +23,7 @@ const Index = () => {
         <BalanceCard balance={balance} />
         <QuickActions />
         <ServiceGrid />
-        <TransactionList transactions={transactions} limit={5} />
+        <TransactionList transactions={transactions} />
       </div>
     </MobileLayout>
   );

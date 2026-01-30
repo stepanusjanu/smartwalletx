@@ -2,15 +2,19 @@
 // Simulates SQLite-like persistence without requiring a backend
 
 import { Transaction, WalletBalance } from '@/types/wallet';
+import { openDB } from '@/lib/IndexedDB';
 
-const STORAGE_KEYS = {
-  BALANCE: 'ewallet_balance',
-  TRANSACTIONS: 'ewallet_transactions',
-  USER: 'ewallet_user',
-} as const;
+const BALANCE_ID = 'main_balance';
+
+// const STORAGE_KEYS = {
+//   BALANCE: 'ewallet_balance',
+//   TRANSACTIONS: 'ewallet_transactions',
+//   USER: 'ewallet_user',
+// } as const;
 
 // Initialize with demo data
 const INITIAL_BALANCE: WalletBalance = {
+  id: BALANCE_ID,
   amount: 2500000,
   currency: 'IDR',
   lastUpdated: new Date(),
@@ -64,80 +68,259 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   },
 ];
 
+
+type Listener = () => void;
+
+const listeners = new Set<Listener>();
+
+function notify() {
+  listeners.forEach((l) => l());
+}
+
 // Storage functions
 export const storage = {
+  subscribe(listener: Listener) {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+
+
   // Balance operations
-  getBalance: (): WalletBalance => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.BALANCE);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...parsed, lastUpdated: new Date(parsed.lastUpdated) };
-      }
-      storage.setBalance(INITIAL_BALANCE);
-      return INITIAL_BALANCE;
-    } catch {
-      return INITIAL_BALANCE;
-    }
+
+  // local storage logic for getbalance
+  // getBalance: (): WalletBalance => {
+  //   try {
+  //     const stored = localStorage.getItem(STORAGE_KEYS.BALANCE);
+  //     if (stored) {
+  //       const parsed = JSON.parse(stored);
+  //       return { ...parsed, lastUpdated: new Date(parsed.lastUpdated) };
+  //     }
+  //     storage.setBalance(INITIAL_BALANCE);
+  //     return INITIAL_BALANCE;
+  //   } catch {
+  //     return INITIAL_BALANCE;
+  //   }
+  // },
+  
+  async getBalance(): Promise<WalletBalance> {
+    const db = await openDB();
+    const tx = db.transaction('balance', 'readonly');
+    const store = tx.objectStore('balance');
+
+    return new Promise((resolve) => {
+      const req = store.get(BALANCE_ID);
+
+      req.onsuccess = () => {
+        if (req.result) {
+          resolve({
+            ...req.result,
+            amount: Number(req.result.amount) || 0,
+            lastUpdated: new Date(req.result.lastUpdated),
+          });
+        } else {
+          this.setBalance(INITIAL_BALANCE);
+          resolve(INITIAL_BALANCE);
+        }
+      };
+    });
+  },
+  
+  // localstorage logic setbalance
+  // setBalance: (balance: WalletBalance): void => {
+  //   localStorage.setItem(STORAGE_KEYS.BALANCE, JSON.stringify(balance));
+  // },
+  
+ async setBalance(balance: WalletBalance): Promise<void> {
+    const db = await openDB();
+    const tx = db.transaction('balance', 'readwrite');
+    const store = tx.objectStore('balance');
+
+    store.put({
+      ...balance,
+      id: BALANCE_ID,
+      amount: Number(balance.amount) || 0,
+      lastUpdated: balance.lastUpdated.toISOString(),
+    });
+
+    await tx.complete;
+    notify();
   },
 
-  setBalance: (balance: WalletBalance): void => {
-    localStorage.setItem(STORAGE_KEYS.BALANCE, JSON.stringify(balance));
-  },
+  // local storage logic updatebalance
+  // updateBalance: (amount: number): WalletBalance => {
+  //   const current = storage.getBalance();
+  //   const updated: WalletBalance = {
+  //     ...current,
+  //     amount: current.amount + amount,
+  //     lastUpdated: new Date(),
+  //   };
+  //   storage.setBalance(updated);
+  //   return updated;
+  // },
+  
+  async updateBalance(delta: number): Promise<WalletBalance> {
+    const current = await this.getBalance();
 
-  updateBalance: (amount: number): WalletBalance => {
-    const current = storage.getBalance();
     const updated: WalletBalance = {
       ...current,
-      amount: current.amount + amount,
+      amount: current.amount + Number(delta),
       lastUpdated: new Date(),
     };
-    storage.setBalance(updated);
+
+    await this.setBalance(updated);
     return updated;
   },
-
+ 
   // Transaction operations
-  getTransactions: (): Transaction[] => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.map((t: Transaction) => ({ ...t, date: new Date(t.date) }));
-      }
-      storage.setTransactions(INITIAL_TRANSACTIONS);
-      return INITIAL_TRANSACTIONS;
-    } catch {
-      return INITIAL_TRANSACTIONS;
-    }
+ // localstorage logic on getTransactions
+ // getTransactions: (): Transaction[] => {
+ //    try {
+ //      const stored = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+ //      if (stored) {
+ //        const parsed = JSON.parse(stored);
+ //        return parsed.map((t: Transaction) => ({ ...t, date: new Date(t.date) }));
+ //      }
+ //      storage.setTransactions(INITIAL_TRANSACTIONS);
+ //      return INITIAL_TRANSACTIONS;
+ //    } catch {
+ //      return INITIAL_TRANSACTIONS;
+ //    }
+ //  },
+
+  async getTransactions(): Promise<Transaction[]> {
+    const db = await openDB();
+    const tx = db.transaction('transactions', 'readonly');
+    const store = tx.objectStore('transactions');
+
+    return new Promise((resolve) => {
+      const req = store.getAll();
+
+      req.onsuccess = () => {
+        if (req.result.length) {
+          resolve(
+            req.result.map((t) => ({
+              ...t,
+              amount: Number(t.amount) || 0,
+              date: new Date(t.date),
+            }))
+          );
+        } else {
+          this.setTransactions(INITIAL_TRANSACTIONS);
+          resolve(INITIAL_TRANSACTIONS);
+        }
+      };
+    });
+  },
+ 
+  // localstorage logic setTransactions
+  // setTransactions: (transactions: Transaction[]): void => {
+  //   localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
+  // },
+  
+  
+  async setTransactions(transactions: Transaction[]): Promise<void> {
+    const db = await openDB();
+    const tx = db.transaction('transactions', 'readwrite');
+    const store = tx.objectStore('transactions');
+
+    store.clear();
+
+    transactions.forEach((t) =>
+      store.put({
+        ...t,
+        amount: Number(t.amount) || 0,
+        date: t.date.toISOString(),
+      })
+    );
+
+    await tx.complete;
+    notify();
   },
 
-  setTransactions: (transactions: Transaction[]): void => {
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
-  },
+  // localstorage logic addTransaction
+  // addTransaction: (transaction: Omit<Transaction, 'id'>): Transaction => {
+  //   const transactions = storage.getTransactions();
+  //   const newTransaction: Transaction = {
+  //     ...transaction,
+  //     id: Date.now().toString(),
+  //   };
+  //   storage.setTransactions([newTransaction, ...transactions]);
+  //   return newTransaction;
+  // },
+  
+  
+  async addTransaction(
+    transaction: Omit<Transaction, 'id'>
+  ): Promise<Transaction> {
+    const db = await openDB();
+    const tx = db.transaction(['transactions', 'balance'], 'readwrite');
 
-  addTransaction: (transaction: Omit<Transaction, 'id'>): Transaction => {
-    const transactions = storage.getTransactions();
+    const transactionStore = tx.objectStore('transactions');
+    const balanceStore = tx.objectStore('balance');
+
     const newTransaction: Transaction = {
       ...transaction,
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
+      amount: Number(transaction.amount) || 0,
     };
-    storage.setTransactions([newTransaction, ...transactions]);
+
+    transactionStore.put({
+      ...newTransaction,
+      date: newTransaction.date.toISOString(),
+    });
+
+    const balanceReq = balanceStore.get(BALANCE_ID);
+
+    balanceReq.onsuccess = () => {
+      const current = balanceReq.result ?? INITIAL_BALANCE;
+
+      balanceStore.put({
+        ...current,
+        amount: Number(current.amount) + newTransaction.amount,
+        lastUpdated: new Date().toISOString(),
+      });
+    };
+
+    await tx.complete;
+    notify(); // 👈 THIS IS WHAT TRIGGERS UI UPDATE
+
     return newTransaction;
   },
-
   // Utility
-  formatCurrency: (amount: number, currency: string = 'IDR'): string => {
+  // formatCurrency: (amount: number, currency: string = 'IDR'): string => {
+  //   return new Intl.NumberFormat('id-ID', {
+  //     style: 'currency',
+  //     currency,
+  //     minimumFractionDigits: 0,
+  //     maximumFractionDigits: 0,
+  //   }).format(Math.abs(amount));
+  // },
+  
+  formatCurrency(amount: number, currency = 'IDR'): string {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(Math.abs(amount));
+    }).format(Math.abs(Number(amount) || 0));
   },
 
-  clearAll: (): void => {
-    Object.values(STORAGE_KEYS).forEach((key) => {
-      localStorage.removeItem(key);
-    });
+
+  // localstorage clear all storage keys 
+  // clearAll: (): void => {
+  //   Object.values(STORAGE_KEYS).forEach((key) => {
+  //     localStorage.removeItem(key);
+  //   });
+  // },
+  
+  async clearAll(): Promise<void> {
+    const db = await openDB();
+    const tx = db.transaction(['balance', 'transactions', 'user'], 'readwrite');
+
+    tx.objectStore('balance').clear();
+    tx.objectStore('transactions').clear();
+    tx.objectStore('user').clear();
+
+    await tx.complete;
   },
 };

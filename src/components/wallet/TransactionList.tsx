@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 
 interface TransactionListProps {
   transactions: Transaction[];
-  limit?: number;
 }
 
 const getTransactionIcon = (type: Transaction['type'], category: string) => {
@@ -43,9 +42,7 @@ const formatDate = (date: Date) => {
   return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 };
 
-export const TransactionList = ({ transactions, limit }: TransactionListProps) => {
-  const displayedTransactions = limit ? transactions.slice(0, limit) : transactions;
-
+export const TransactionList = ({ transactions }: TransactionListProps) => {
   return (
     <div className="rounded-2xl bg-card/50 p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -56,7 +53,7 @@ export const TransactionList = ({ transactions, limit }: TransactionListProps) =
       </div>
       
       <div className="space-y-3">
-        {displayedTransactions.map((transaction, index) => {
+        {transactions.map((transaction, index) => {
           const Icon = getTransactionIcon(transaction.type, transaction.category);
           const colorClass = getTransactionColor(transaction.type);
           const isPositive = transaction.amount > 0;
@@ -77,7 +74,8 @@ export const TransactionList = ({ transactions, limit }: TransactionListProps) =
                 <p className="text-xs text-muted-foreground">{formatDate(transaction.date)}</p>
               </div>
               <p className={`text-sm font-semibold ${isPositive ? 'text-success' : 'text-foreground'}`}>
-                {isPositive ? '+' : ''}{storage.formatCurrency(transaction.amount)}
+                {isPositive ? '+' : ''}
+                {storage.formatCurrency(Number(transaction.amount) || 0)}
               </p>
             </motion.div>
           );

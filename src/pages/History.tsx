@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Search, Filter, Smartphone, Zap
 import { Link } from 'react-router-dom';
 import { storage } from '@/lib/storage';
 import { Transaction } from '@/types/wallet';
+import { useWallet } from '@/context/WalletContext';
 
 const getTransactionIcon = (type: Transaction['type'], category: string) => {
   if (category === 'Pulsa') return Smartphone;
@@ -54,14 +55,12 @@ const groupTransactionsByDate = (transactions: Transaction[]) => {
 };
 
 export default function History() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { transactions, loading, error } = useWallet();
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
-  useEffect(() => {
-    setTransactions(storage.getTransactions());
-  }, []);
-
+  if (loading) return null;
+  if (error) return <div>{error}</div>;
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter =
