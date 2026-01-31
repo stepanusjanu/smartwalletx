@@ -64,7 +64,7 @@ export default function Payment() {
   const Icon = paymentConfig.icon;
   const providerList = providers[type as keyof typeof providers] || [];
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     const balance = storage.getBalance();
 
     if (selectedAmount > balance.amount) {
@@ -83,23 +83,51 @@ export default function Payment() {
       return;
     }
 
-    storage.updateBalance(-selectedAmount);
-    storage.addTransaction({
-      type: 'payment',
-      amount: -selectedAmount,
-      description: `${paymentConfig.label} ${selectedProvider || ''} ${phoneNumber.slice(-4)}`,
-      category: paymentConfig.label,
-      date: new Date(),
-      status: 'success',
+    const trx = await storage.addTransaction({
+       type: 'payment',
+       amount: selectedAmount,        
+       description: `${paymentConfig.label} ${selectedProvider || ''} ${phoneNumber.slice(-4)}`,
+       category: paymentConfig.label,
+       date: new Date(),
+       status: 'pending',
     });
 
     toast({
-      title: 'Pembayaran Berhasil!',
-      description: `${paymentConfig.label} ${storage.formatCurrency(selectedAmount)}`,
-      variant: 'success'
+      title: 'Pembayaran diproses',
+      description: 'Mohon menunggu...',
     });
 
-    navigate('/');
+    setTimeout(() => {
+       storage.finalizeTransaction(trx.id);
+
+       toast({
+         title: 'Pembayaran berhasil',
+         description: `${paymentConfig.label} ${storage.formatCurrency(selectedAmount)}`,
+         variant: 'success'
+       });
+
+      navigate('/');
+    }, 3000);
+
+
+
+    // storage.updateBalance(-selectedAmount);
+    // storage.addTransaction({
+    //   type: 'payment',
+    //   amount: -selectedAmount,
+    //   description: `${paymentConfig.label} ${selectedProvider || ''} ${phoneNumber.slice(-4)}`,
+    //   category: paymentConfig.label,
+    //   date: new Date(),
+    //   status: 'success',
+    // });
+    //
+    // toast({
+    //   title: 'Pembayaran Berhasil!',
+    //   description: `${paymentConfig.label} ${storage.formatCurrency(selectedAmount)}`,
+    //   variant: 'success'
+    // });
+    //
+    // navigate('/');
   };
 
   return (
