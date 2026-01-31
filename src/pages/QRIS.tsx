@@ -10,7 +10,7 @@ export default function QRIS() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedData, setScannedData] = useState<{ merchant: string; amount: number } | null>(null);
 
-  // Simulate QR scan
+  
   const handleSimulateScan = () => {
     setIsScanning(true);
     
@@ -23,7 +23,7 @@ export default function QRIS() {
     }, 2000);
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!scannedData) return;
     
     const balance = storage.getBalance();
@@ -34,24 +34,53 @@ export default function QRIS() {
       });
       return;
     }
-
-    storage.updateBalance(-scannedData.amount);
-    storage.addTransaction({
-      type: 'payment',
-      amount: -scannedData.amount,
-      description: `QRIS - ${scannedData.merchant}`,
-      category: 'QRIS',
-      date: new Date(),
-      status: 'success',
+    
+     const trx = await storage.addTransaction({
+       type: 'payment',
+       amount: scannedData.amount,        
+       description: `QRIS - ${scannedData.merchant}`,
+       category: 'QRIS',
+       date: new Date(),
+       status: 'pending',
     });
 
     toast({
-      title: 'Pembayaran QRIS Berhasil!',
-      description: `${storage.formatCurrency(scannedData.amount)} ke ${scannedData.merchant}`,
-      variant: 'success'
+      title: 'Pembayaran diproses',
+      description: 'Mohon menunggu...',
     });
 
-    navigate('/');
+
+    setTimeout(() => {
+       storage.finalizeTransaction(trx.id);
+
+       toast({
+         title: 'Pembayaran QRIS berhasil',
+         description: `${storage.formatCurrency(scannedData.amount)} ke ${scannedData.merchant}`,
+         variant: 'success'
+       });
+
+      navigate('/');
+    }, 3000);
+
+
+
+    // storage.updateBalance(-scannedData.amount);
+    // storage.addTransaction({
+    //   type: 'payment',
+    //   amount: -scannedData.amount,
+    //   description: `QRIS - ${scannedData.merchant}`,
+    //   category: 'QRIS',
+    //   date: new Date(),
+    //   status: 'success',
+    // });
+    //
+    // toast({
+    //   title: 'Pembayaran QRIS Berhasil!',
+    //   description: `${storage.formatCurrency(scannedData.amount)} ke ${scannedData.merchant}`,
+    //   variant: 'success'
+    // });
+    //
+    // navigate('/');
   };
 
   return (
