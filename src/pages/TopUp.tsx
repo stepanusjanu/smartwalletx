@@ -30,8 +30,10 @@ export default function TopUp() {
   const [selectedMethod, setSelectedMethod] = useState<'ewallet' | 'bank'>('ewallet');
   const [selectedSource, setSelectedSource] = useState<string>('');
 
-  const handleTopUp = () => {
+  const handleTopUp = async () => {
     const amount = customAmount ? parseInt(customAmount) : selectedAmount;
+    const signedAmount = selectedMethod === 'bank' ? amount : -amount;
+
     if (amount < 10000) {
       toast({
         title: 'Jumlah minimum Rp 10.000',
@@ -40,23 +42,112 @@ export default function TopUp() {
       return;
     }
 
-    storage.updateBalance(amount);
-    storage.addTransaction({
+    if (!selectedSource) {
+      toast({
+        title: 'Pilih metode pembayaran',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const pendingTx = await storage.addPendingTransaction({
       type: 'topup',
-      amount: amount,
-      description: `Top Up via ${selectedSource || 'Transfer'}`,
+      source: selectedMethod,
+      amount: signedAmount,
+      description:
+        selectedMethod === 'bank'
+        ? `Top Up via Bank ${selectedSource}`
+        : `Top Up ke ${selectedSource}`,
       category: 'Top Up',
-      date: new Date(),
-      status: 'success',
     });
 
     toast({
-      title: 'Top Up Berhasil!',
-      description: `Saldo Anda bertambah ${storage.formatCurrency(amount)}`,
+      title: 'Transaksi dimulai',
+      description: `Menunggu Konfirmasi.....`,
     });
 
-    navigate('/');
-  };
+    const PROCESS_DURATION = 3000;
+
+    setTimeout(async () => {
+      await storage.confirmTransaction(pendingTx.id);
+
+      toast({
+        title: 'Top Up Berhasil',
+        description: storage.formatCurrency(amount),
+      });
+
+      navigate('/');
+    }, PROCESS_DURATION);
+
+    
+
+    // if (selectedMethod === 'bank') {
+    //   await storage.updateBalance(amount);
+    //   await storage.addTransaction({
+    //     type: 'topup',
+    //     amount: amount,
+    //     description: `Top Up via Bank ${selectedSource}`,
+    //     category: 'Top Up',
+    //     date: new Date(),
+    //     status: 'success',
+    //   });
+    //
+    //   toast({
+    //     title: 'Top Up Berhasil',
+    //     description: `Saldo bertambah ${storage.formatCurrency(amount)}`,
+    //   });
+    // }else{
+    //    const transferAmount = parseInt(amount);
+    //    const balance = await storage.getBalance();
+    //
+    //   if (transferAmount > balance.amount) {
+    //     toast({
+    //       title: 'Saldo tidak mencukupi',
+    //       variant: 'destructive',
+    //     });
+    //     return;
+    //   }
+    //
+    //   if (transferAmount < 10000) {
+    //     toast({
+    //       title: 'Minimal transfer Rp 10.000',
+    //       variant: 'destructive',
+    //     });
+    //     return;
+    //   }
+    //
+    //   await storage.updateBalance(-transferAmount);
+    //   await storage.addTransaction({
+    //     type: 'topup',
+    //     amount: -transferAmount,
+    //     description: `Top Up ke ${accountName}`,
+    //     category: 'Top Up',
+    //     date: new Date(),
+    //     status: 'success',
+    //   });
+    //
+    //   toast({
+    //     title: `Top Up ke ${wallet.name}`,
+    //     description: `${storage.formatCurrency(transferAmount)} ke ${accountName}`,
+    //   });
+    // }
+
+
+    // storage.updateBalance(amount);
+    // storage.addTransaction({
+    //   type: 'topup',
+    //   amount: amount,
+    //   description: `Top Up via ${selectedSource || 'Transfer'}`,
+    //   category: 'Top Up',
+    //   date: new Date(),
+    //   status: 'success',
+    // });
+    //
+    // toast({
+    //   title: 'Top Up Berhasil!',
+    //   description: `Saldo Anda bertambah ${storage.formatCurrency(amount)}`,
+    // });
+};
 
   return (
     <div className="relative mx-auto min-h-screen max-w-md bg-background">

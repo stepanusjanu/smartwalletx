@@ -6,16 +6,17 @@ import { storage } from '@/lib/storage';
 import { Transaction } from '@/types/wallet';
 import { useWallet } from '@/context/WalletContext';
 
-const getTransactionIcon = (type: Transaction['type'], category: string) => {
+const getTransactionIcon = (type: Transaction['type'], category: string, source: Transaction['source']) => {
   if (category === 'Pulsa') return Smartphone;
   if (category === 'Listrik') return Zap;
-  if (type === 'transfer' || type === 'payment') return ArrowUpRight;
+  if (type === 'transfer' || type === 'payment' || type === 'topup' && source === 'ewallet') return ArrowUpRight;
   return ArrowDownLeft;
 };
 
-const getTransactionColor = (type: Transaction['type']) => {
+const getTransactionColor = (type: Transaction['type'], source: Transaction['source']) => {
   switch (type) {
     case 'topup':
+      if (source === 'ewallet') return 'text-destructive bg-destructive/20'
     case 'receive':
       return 'text-success bg-success/20';
     case 'transfer':
@@ -65,8 +66,8 @@ export default function History() {
     const matchesSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter =
       filter === 'all' ||
-      (filter === 'in' && (t.type === 'topup' || t.type === 'receive')) ||
-      (filter === 'out' && (t.type === 'transfer' || t.type === 'payment'));
+      (filter === 'in' && (t.type === 'topup' && t.source === 'bank' || t.type === 'receive')) ||
+      (filter === 'out' && (t.type === 'transfer' || t.type === 'payment' || t.type === 'topup' && t.source === 'ewallet'));
     return matchesSearch && matchesFilter;
   });
 
@@ -153,8 +154,8 @@ export default function History() {
               <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{date}</h3>
               <div className="rounded-2xl bg-card/50 p-2">
                 {transactions.map((transaction, index) => {
-                  const Icon = getTransactionIcon(transaction.type, transaction.category);
-                  const colorClass = getTransactionColor(transaction.type);
+                  const Icon = getTransactionIcon(transaction.type, transaction.category, transaction.source);
+                  const colorClass = getTransactionColor(transaction.type, transaction.source);
                   const isPositive = transaction.amount > 0;
 
                   return (

@@ -249,43 +249,117 @@ export const storage = {
   // },
   
   
-  async addTransaction(
-    transaction: Omit<Transaction, 'id'>
+  // async addTransaction(
+  //   transaction: Omit<Transaction, 'id'>
+  // ): Promise<Transaction> {
+  //   const db = await openDB();
+  //   const tx = db.transaction(['transactions', 'balance'], 'readwrite');
+  //
+  //   const transactionStore = tx.objectStore('transactions');
+  //   const balanceStore = tx.objectStore('balance');
+  //
+  //   const newTransaction: Transaction = {
+  //     ...transaction,
+  //     id: crypto.randomUUID(),
+  //     amount: Number(transaction.amount) || 0,
+  //   };
+  //
+  //   transactionStore.put({
+  //     ...newTransaction,
+  //     date: newTransaction.date.toISOString(),
+  //   });
+  //
+  //   const balanceReq = balanceStore.get(BALANCE_ID);
+  //
+  //   balanceReq.onsuccess = () => {
+  //     const current = balanceReq.result ?? INITIAL_BALANCE;
+  //
+  //     balanceStore.put({
+  //       ...current,
+  //       amount: Number(current.amount) + newTransaction.amount,
+  //       lastUpdated: new Date().toISOString(),
+  //     });
+  //   };
+  //
+  //   await tx.complete;
+  //   notify();
+  //
+  //   return newTransaction;
+  // },
+  
+
+  async addPendingTransaction(
+      transaction: Omit<Transaction, 'id' | 'status' | 'finishedAt'>
   ): Promise<Transaction> {
     const db = await openDB();
-    const tx = db.transaction(['transactions', 'balance'], 'readwrite');
+    const tx = db.transaction('transactions', 'readwrite');
+    const store = tx.objectStore('transactions');
 
-    const transactionStore = tx.objectStore('transactions');
-    const balanceStore = tx.objectStore('balance');
+    const now = new Date();
 
-    const newTransaction: Transaction = {
+    const newTx: Transaction = {
       ...transaction,
       id: crypto.randomUUID(),
+      status: 'pending',
+      startedAt: now,
+      date: now,
+      source: transaction.source,
       amount: Number(transaction.amount) || 0,
     };
 
-    transactionStore.put({
-      ...newTransaction,
-      date: newTransaction.date.toISOString(),
+    store.put({
+      ...newTx,
+      date: now.toISOString(),
+      startedAt: now.toISOString(),
     });
 
-    const balanceReq = balanceStore.get(BALANCE_ID);
+    await tx.complete;
+    notify();
 
-    balanceReq.onsuccess = () => {
-      const current = balanceReq.result ?? INITIAL_BALANCE;
+    return newTx;
+  },
 
-      balanceStore.put({
-        ...current,
-        amount: Number(current.amount) + newTransaction.amount,
-        lastUpdated: new Date().toISOString(),
+
+  async confirmTransaction(id: string): Promise<void> {
+    const db = await openDB();
+    const tx = db.transaction(['transactions', 'balance'], 'readwrite');
+
+    const txStore = tx.objectStore('transactions');
+    const balanceStore = tx.objectStore('balance');
+
+    const req = txStore.get(id);
+
+    req.onsuccess = () => {
+      const t = req.result;
+      if (!t || t.status !== 'pending') return;
+
+      const finishedAt = new Date();
+      
+      txStore.put({
+        ...t,
+        status: 'success',
+        finishedAt: finishedAt.toISOString(),
       });
+
+
+      const balReq = balanceStore.get(BALANCE_ID);
+      balReq.onsuccess = () => {
+        const current = balReq.result ?? INITIAL_BALANCE;
+
+        balanceStore.put({
+          ...current,
+          amount: Number(current.amount) + Number(t.amount),
+          lastUpdated: finishedAt.toISOString(),
+        });
+      };
     };
 
     await tx.complete;
-    notify(); // 👈 THIS IS WHAT TRIGGERS UI UPDATE
-
-    return newTransaction;
+    notify();
   },
+
+
+
   // Utility
   // formatCurrency: (amount: number, currency: string = 'IDR'): string => {
   //   return new Intl.NumberFormat('id-ID', {

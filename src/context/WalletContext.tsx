@@ -29,13 +29,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       const normalizedTransactions = Array.isArray(rawTransactions)
-        ? rawTransactions.map(t => ({
-            ...t,
+        ? rawTransactions
+          .map(t => ({
+          ...t,
             amount: Number(t.amount) || 0,
             date: new Date(t.date),
+            startedAt: t.startedAt ? new Date(t.startedAt) : undefined,
+            finishedAt: t.finishedAt ? new Date(t.finishedAt) : undefined,
           }))
-        : [];
-
+          .sort((a, b) => {
+            const aTime = a.finishedAt ?? a.startedAt ?? a.date;
+            const bTime = b.finishedAt ?? b.startedAt ?? b.date;
+            return bTime.getTime() - aTime.getTime();
+          })
+      : [];
+     
       const nextState: WalletState = {
         balance: rawBalance
           ? {
@@ -62,10 +70,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-
     load();
-
-
     const unsubscribe = storage.subscribe?.(load);
     return () => unsubscribe?.();
   }, []);

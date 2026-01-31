@@ -8,16 +8,17 @@ interface TransactionListProps {
   transactions: Transaction[];
 }
 
-const getTransactionIcon = (type: Transaction['type'], category: string) => {
+const getTransactionIcon = (type: Transaction['type'], category: string, source: Transaction['source']) => {
   if (category === 'Pulsa') return Smartphone;
   if (category === 'Listrik') return Zap;
-  if (type === 'transfer' || type === 'payment') return ArrowUpRight;
+  if (type === 'transfer' || type === 'payment' || type === 'topup' && source === 'ewallet') return ArrowUpRight;
   return ArrowDownLeft;
 };
 
-const getTransactionColor = (type: Transaction['type']) => {
+const getTransactionColor = (type: Transaction['type'], source: Transaction['source']) => {
   switch (type) {
     case 'topup':
+      if (source === 'ewallet') return 'text-destructive bg-destructive/20';
     case 'receive':
       return 'text-success bg-success/20';
     case 'transfer':
@@ -54,8 +55,8 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
       
       <div className="space-y-3">
         {transactions.map((transaction, index) => {
-          const Icon = getTransactionIcon(transaction.type, transaction.category);
-          const colorClass = getTransactionColor(transaction.type);
+          const Icon = getTransactionIcon(transaction.type, transaction.category, transaction.source);
+          const colorClass = getTransactionColor(transaction.type, transaction.source);
           const isPositive = transaction.amount > 0;
 
           return (

@@ -1,12 +1,15 @@
 export interface Transaction {
   id: string;
   type: 'topup' | 'transfer' | 'payment' | 'receive';
+  source: 'bank' | 'ewallet';
   amount: number;
   description: string;
   category: string;
   date: Date;
   status: 'success' | 'pending' | 'failed';
   icon?: string;
+  startedAt?: Date;
+  finishedAt?: Date;
 }
 
 export interface WalletBalance {
