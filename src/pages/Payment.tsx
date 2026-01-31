@@ -96,6 +96,7 @@ export default function Payment() {
     toast({
       title: 'Pembayaran Berhasil!',
       description: `${paymentConfig.label} ${storage.formatCurrency(selectedAmount)}`,
+      variant: 'success'
     });
 
     navigate('/');

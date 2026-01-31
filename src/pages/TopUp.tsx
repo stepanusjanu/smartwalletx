@@ -33,10 +33,19 @@ export default function TopUp() {
   const handleTopUp = async () => {
     const amount = customAmount ? parseInt(customAmount) : selectedAmount;
     const signedAmount = selectedMethod === 'bank' ? amount : -amount;
+    const balance = await storage.getBalance();
 
     if (amount < 10000) {
       toast({
         title: 'Jumlah minimum Rp 10.000',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if(selectedMethod === 'ewallet' && amount > balance.amount){
+      toast({
+        title: 'Saldo tidak mencukupi',
         variant: 'destructive',
       });
       return;
@@ -62,7 +71,7 @@ export default function TopUp() {
     });
 
     toast({
-      title: 'Transaksi dimulai',
+      title: 'Top Up diproses',
       description: `Menunggu Konfirmasi.....`,
     });
 
@@ -74,6 +83,7 @@ export default function TopUp() {
       toast({
         title: 'Top Up Berhasil',
         description: storage.formatCurrency(amount),
+        variant: 'success'
       });
 
       navigate('/');

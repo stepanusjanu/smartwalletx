@@ -67,23 +67,53 @@ export default function Transfer() {
       });
       return;
     }
-
-    storage.updateBalance(-transferAmount);
-    storage.addTransaction({
-      type: 'transfer',
-      amount: -transferAmount,
-      description: `Transfer ke ${accountName}`,
-      category: 'Transfer',
-      date: new Date(),
-      status: 'success',
+    
+    const trx = await storage.addTransaction({
+       type: 'transfer',
+       source: 'bank',            
+       amount: transferAmount,        
+       description: `Transfer ke ${accountName}`,
+       category: 'Transfer',
+       date: new Date(),
+       status: 'pending',
     });
 
     toast({
-      title: 'Transfer Berhasil!',
-      description: `${storage.formatCurrency(transferAmount)} ke ${accountName}`,
+      title: 'Transfer diproses',
+      description: 'Mohon menunggu...',
     });
 
-    navigate('/');
+
+    setTimeout(() => {
+       storage.finalizeTransaction(trx.id);
+
+       toast({
+         title: 'Transfer berhasil',
+         description: `${storage.formatCurrency(transferAmount)} ke ${accountName}`,
+         variant: 'success'
+       });
+
+      navigate('/');
+    }, 3000);
+
+
+    // storage.updateBalance(-transferAmount);
+    // storage.addTransaction({
+    //   type: 'transfer',
+    //   source: 'bank',
+    //   amount: -transferAmount,
+    //   description: `Transfer ke ${accountName}`,
+    //   category: 'Transfer',
+    //   date: new Date(),
+    //   status: 'success',
+    // });
+    //
+    // toast({
+    //   title: 'Transfer Berhasil!',
+    //   description: `${storage.formatCurrency(transferAmount)} ke ${accountName}`,
+    // });
+    //
+    // navigate('/');
   };
 
   return (

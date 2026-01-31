@@ -48,6 +48,7 @@ export default function QRIS() {
     toast({
       title: 'Pembayaran QRIS Berhasil!',
       description: `${storage.formatCurrency(scannedData.amount)} ke ${scannedData.merchant}`,
+      variant: 'success'
     });
 
     navigate('/');
