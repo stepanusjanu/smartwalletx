@@ -77,6 +77,18 @@ function notify() {
   listeners.forEach((l) => l());
 }
 
+
+function getBalanceDelta(trx: Transaction): number {
+    switch(trx.type){
+      case 'topup':
+      case 'receive':
+         return trx.amount;
+      case 'transfer':
+      case 'payment':  
+         return -trx.amount
+    }
+    return 0;
+}
 // Storage functions
 export const storage = {
   subscribe(listener: Listener) {
@@ -265,7 +277,7 @@ export const storage = {
     const newTransaction: Transaction = {
       ...transaction,
       id: crypto.randomUUID(),
-      amount: -cleanAmount,
+      amount: cleanAmount,
       status: transaction.status ?? 'pending',
     };
 
@@ -281,9 +293,10 @@ export const storage = {
 
        balanceReq.onsuccess = () => {
          const current = balanceReq.result ?? INITIAL_BALANCE;
+         const amountTransfer = getBalanceDelta(newTransaction);
          balanceStore.put({
            ...current,
-           amount: Number(current.amount) - cleanAmount,
+           amount: Number(current.amount) + amountTransfer,
            lastUpdated: new Date().toISOString(),
         });
        };
@@ -308,7 +321,8 @@ export const storage = {
      req.onsuccess = () => {
         const trx = req.result;
         if (!trx || trx.status === 'success') return;
-
+        const amountTransfer = getBalanceDelta(trx);
+        trx.amount = amountTransfer;
         trx.status = 'success';
         transactionStore.put(trx);
 
@@ -317,7 +331,7 @@ export const storage = {
            const current = balanceReq.result ?? INITIAL_BALANCE;
            balanceStore.put({
              ...current,
-             amount: Number(current.amount) - trx.amount,
+             amount: Number(current.amount) + amountTransfer,
              lastUpdated: new Date().toISOString(),
            });
         };
